@@ -95,8 +95,6 @@ class LZ4:
             print('Text:', text)
 
 
-
-
         return text
 
 
