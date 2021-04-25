@@ -22,7 +22,7 @@ class LZ4:
 
     def readToken(self, code):
         self.literalLength = code[self.it] >> 4 # 4 highest bits
-        self.matchLength = (code[self.it] % 16)
+        self.matchLength = code[self.it] & 0x0F # 4 lowest bits 
         
         self.it += 1
 
@@ -71,15 +71,12 @@ class LZ4:
         # print('Offset:', self.offset)
         pos = len(text) - self.offset
         for i in range(self.matchLength):
-            text += text[pos + i].to_bytes(1, 'big') 
-        
-
-        return text
+            text.append(text[pos + i]) 
 
 
     def decompress(self, code):
         self.it = 0
-        text = b""
+        text = bytearray()
         with tqdm(total=len(code)) as pbar:
             it_old = self.it 
             while self.it < len(code):
@@ -99,7 +96,7 @@ class LZ4:
                     self.readMatchLength(code)
                     #print('It:', self.it)
                     # add
-                    text = self.readMatch(text)
+                    self.readMatch(text)
                     #print('It:', self.it)
                 # print(offsets[k], "==", self.offset)
                 # print('Block:', code[it_old:self.it])
@@ -107,7 +104,6 @@ class LZ4:
 
 
         return text
-
 
 
 
