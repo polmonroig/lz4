@@ -33,7 +33,6 @@ class LinkedHashTable:
 class LZ4:
 
     ENCODE_EXT = '.lz4'
-    DECODE_EXT = '_decoded'
 
     MIN_MATCH_LENGTH = 4
 
@@ -267,7 +266,7 @@ def main():
         print('Decompressing file', file)
         text = encoder.decompress(fd.read())
         # create new file
-        with open(file.split('.')[0] + LZ4.DECODE_EXT, 'wb') as out:
+        with open(".".join(file.split('.')[:-1]), 'wb') as out:
             out.write(text)
         fd.close()
     # if the command specified is unknown skip
