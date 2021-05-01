@@ -97,8 +97,6 @@ class LZ4:
 
                     # print('Match found with length', match_length, 'and offset', offset)
                     LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
-                    self.table.add(literal, self.it) # remove line to increase speed
-
                     self.it += match_length
                     pbar.update(match_length)
                     last_match = self.it

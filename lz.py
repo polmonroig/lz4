@@ -99,8 +99,6 @@ class LZ4:
                     LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
                     self.table.add(literal, self.it) # remove line to increase speed
                     # remove for increased speed, but less compression
-                    for blockByte in range(self.it, match_length + self.it, LZ4.MINIMUM_LENGTH):
-                        self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
                     self.it += match_length
                     pbar.update(match_length)
                     last_match = self.it
