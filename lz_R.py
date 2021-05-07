@@ -114,12 +114,6 @@ class LZ4:
                     self.it += 1
 
         LZ4.createBlock(blocks, text[last_match:self.it], 0, 0, last_block=True)
-        lengths = []
-        for value in self.table.table.values():
-            lengths.append(len(value))
-        print("Avg:", sum(lengths) / len(lengths))
-        print("Max:", max(lengths))
-        print("Min:", min(lengths))
         return blocks
 
     @staticmethod
