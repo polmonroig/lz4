@@ -55,6 +55,8 @@ class LZ4:
         if match_indices is not None:
             for index in reversed(match_indices):
                 match_length, offset = self.iterate(text, index, self.it)
+                if offset == match_length == 0:
+                    break
                 if match_length > best_match_length:
                     match_found = True
                     best_match_length = match_length
@@ -67,7 +69,7 @@ class LZ4:
     def iterate(self, text, match_index, literal_index):
         match_length = LZ4.MINIMUM_LENGTH
         offset = literal_index - match_index
-        if offset > LZ4.MAX_OFFSET:
+        if offset > LZ4.MAX_OFFSET :
             return 0, 0
         k = match_index + LZ4.MINIMUM_LENGTH
         j = literal_index + LZ4.MINIMUM_LENGTH
@@ -112,6 +114,12 @@ class LZ4:
                     self.it += 1
 
         LZ4.createBlock(blocks, text[last_match:self.it], 0, 0, last_block=True)
+        lengths = []
+        for value in self.table.table.values():
+            lengths.append(len(value))
+        print("Avg:", sum(lengths) / len(lengths))
+        print("Max:", max(lengths))
+        print("Min:", min(lengths))
         return blocks
 
     @staticmethod
