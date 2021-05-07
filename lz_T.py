@@ -28,7 +28,7 @@ class LinkedHashTable:
         self.table.move_to_end(literal)
         if len(self.table) > LinkedHashTable.MAX_TABLE_SIZE:
             self.table.popitem(last = False)
-
+            # print("full")
 
 class LZ4:
 
@@ -37,7 +37,7 @@ class LZ4:
     MIN_MATCH_LENGTH = 4
 
     MINIMUM_LENGTH = 4
-    GOOD_ENOUGH_SIZE = 128
+    GOOD_ENOUGH_SIZE = 512
     MAX_OFFSET = 65535 # 2 BYTES = 65535
 
     def __init__(self):
@@ -59,8 +59,8 @@ class LZ4:
                     match_found = True
                     best_match_length = match_length
                     best_offset = offset
-                    if best_match_length >= LZ4.GOOD_ENOUGH_SIZE:
-                        break
+                #if best_match_length >= GOOD_ENOUGH_SIZE:
+                #    break
 
         return match_found, best_match_length, best_offset
 
@@ -72,7 +72,6 @@ class LZ4:
         k = match_index + LZ4.MINIMUM_LENGTH
         j = literal_index + LZ4.MINIMUM_LENGTH
         # search buffer
-
         while j < len(text) and text[j] == text[k]:
             j += 1
             k += 1
@@ -92,17 +91,12 @@ class LZ4:
                 #print('Search buffer:', "".join([chr(i)for i in searchBuffer]))
                 #print('Code:', blocks)
                 literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
-
                 match_found, match_length, offset = self.find_best(text, literal)
 
                 if match_found: # match found
 
                     # print('Match found with length', match_length, 'and offset', offset)
                     LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
-                    self.table.add(literal, self.it) # remove line to increase speed
-                    # remove for increased speed, but less compression
-                    for blockByte in range(self.it, match_length + self.it, 1):
-                        self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
                     self.it += match_length
                     pbar.update(match_length)
                     last_match = self.it
