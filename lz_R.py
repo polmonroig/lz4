@@ -37,7 +37,7 @@ class LZ4:
     MIN_MATCH_LENGTH = 4
 
     MINIMUM_LENGTH = 4
-    GOOD_ENOUGH_SIZE = 128
+    GOOD_ENOUGH_SIZE = 256 
     MAX_OFFSET = 65535 # 2 BYTES = 65535
 
     def __init__(self):
@@ -54,7 +54,7 @@ class LZ4:
         match_found = False
         if match_indices is not None:
             for index in reversed(match_indices):
-                match_length, offset = self.iterate(text, index, self.it)
+                match_length, offset = self.iterate(text, index, self.it, best_match_length)
                 if offset == match_length == 0:
                     break
                 if match_length > best_match_length:
@@ -66,11 +66,15 @@ class LZ4:
 
         return match_found, best_match_length, best_offset
 
-    def iterate(self, text, match_index, literal_index):
+    def iterate(self, text, match_index, literal_index, best_length):
         match_length = LZ4.MINIMUM_LENGTH
         offset = literal_index - match_index
         if offset > LZ4.MAX_OFFSET :
             return 0, 0
+        left_index = match_index + best_length 
+        right_index = literal_index + best_length 
+        if right_index < len(text) and text[left_index]  != text[right_index]:# this is a worse candidate 
+            return -1, -1 
         k = match_index + LZ4.MINIMUM_LENGTH
         j = literal_index + LZ4.MINIMUM_LENGTH
         # search buffer
