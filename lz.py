@@ -54,7 +54,9 @@ class LZ4:
         match_found = False
         if match_indices is not None:
             for index in reversed(match_indices):
-                match_length, offset = self.iterate(text, index, self.it)
+                match_length, offset = self.iterate(text, index, self.it, best_match_length)
+                if offset == match_length == 0:
+                    break 
                 if match_length > best_match_length:
                     match_found = True
                     best_match_length = match_length
@@ -64,11 +66,15 @@ class LZ4:
 
         return match_found, best_match_length, best_offset
 
-    def iterate(self, text, match_index, literal_index):
+    def iterate(self, text, match_index, literal_index, best_length):
         match_length = LZ4.MINIMUM_LENGTH
         offset = literal_index - match_index
         if offset > LZ4.MAX_OFFSET:
             return 0, 0
+        left_index = match_index + best_length 
+        right_index = literal_index + best_length  
+        if right_index < len(text) and text[left_index]  != text[right_index]:# this is a worse candidate 
+            return -1, -1 
         k = match_index + LZ4.MINIMUM_LENGTH
         j = literal_index + LZ4.MINIMUM_LENGTH
         # search buffer
@@ -113,7 +119,7 @@ class LZ4:
     @staticmethod
     def writeLSIC(length):
         blocks = bytearray()
-        count = int(length / 255) # how many 255 we have
+        count = length // 255 # how many 255 we have
         blocks += b"\xff" * count
         # add last block
         blocks.append(int(length % 255)) # append final byte
@@ -143,7 +149,8 @@ class LZ4:
             blocks += LZ4.writeLSIC(literal_length - 15)
         blocks += literal
         if not last_block:
-            blocks += offset.to_bytes(2, 'little')
+            blocks.append(offset & 0x00FF)
+            blocks.append(offset >> 8) 
         if match_length >= 15:
             blocks += LZ4.writeLSIC(match_length - 15)
 

@@ -107,7 +107,7 @@ class LZ4:
     @staticmethod
     def writeLSIC(length):
         blocks = bytearray()
-        count = int(length / 255) # how many 255 we have
+        count = length // 255 # how many 255 we have
         blocks += b"\xff" * count
         # add last block
         blocks.append(int(length % 255)) # append final byte
@@ -137,7 +137,8 @@ class LZ4:
             blocks += LZ4.writeLSIC(literal_length - 15)
         blocks += literal
         if not last_block:
-            blocks += offset.to_bytes(2, 'little')
+            blocks.append(offset & 0x00FF)
+            blocks.append(offset >> 8) 
         if match_length >= 15:
             blocks += LZ4.writeLSIC(match_length - 15)
 
