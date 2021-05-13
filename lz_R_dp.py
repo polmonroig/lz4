@@ -40,6 +40,7 @@ class LZ4:
     MAX_MATCH_LENGTH = 65535 
     MAX_OFFSET = 65535 # 2 BYTES = 65535 
     MAX_SAME_LETTER = 19 + 255 * 256
+    MAX_LENGTH_CODE = 255 
     LITERAL_COST = 1 # 1 byte 
     END_LITERALS = 5 # 4 last literals don't have match 
    
@@ -127,7 +128,8 @@ class LZ4:
            best_length = LZ4.END_LITERALS  
            min_cost = costs[i + 1] + LZ4.LITERAL_COST 
            if num_literals > 15:
-               min_cost += 1  
+               if num_literals == 15 or (num_literals >= 15 + LZ4.MAX_LENGTH_CODE and ((num_literals - 15) % LZ4.MAX_LENGTH_CODE) == 0):
+                    min_cost += 1  
            # long self referencing match  
            #if length > LZ4.MAX_SAME_LETTER and distances[i] == 1:
            #    best_length = length 
