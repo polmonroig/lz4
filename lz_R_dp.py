@@ -36,10 +36,12 @@ class LZ4:
 
     MIN_SHARED_MATCH_LENGTH = 1024 
     MINIMUM_LENGTH = 4 
-    GOOD_ENOUGH_SIZE = 1024  
+    GOOD_ENOUGH_SIZE = 256
     MAX_MATCH_LENGTH = 65535 
     MAX_OFFSET = 65535 # 2 BYTES = 65535 
-
+    MAX_SAME_LETTER = 19 + 255 * 256
+    LITERAL_COST = 1 # 1 byte 
+    END_LITERALS = 5 # 4 last literals don't have match 
    
     def __init__(self):
         self.literalLength = 0
@@ -71,8 +73,8 @@ class LZ4:
         offset = literal_index - match_index
         if offset > LZ4.MAX_OFFSET :
             return 0, 0
-        left_index = match_index + best_length + 1 
-        right_index = literal_index + best_length + 1 
+        left_index = match_index + best_length 
+        right_index = literal_index + best_length 
         # Possible but not necessary worse candidate   
         if right_index < len(text) and text[left_index]  != text[right_index]:# this is a worse candidate 
             return -1, -1 
@@ -91,7 +93,7 @@ class LZ4:
     def compress(self, text):
         self.it = 0
         blocks = bytearray()
-        distances = [0] * len(text) # preallocate 
+        distances = [1] * len(text) # preallocate 
         lengths = [1] * len(text) 
         # This is the first parsing loop 
         # where we find maximum length for each byte 
@@ -117,22 +119,37 @@ class LZ4:
         # In this second pass we compute the costs of each match 
         # thus calculating if it is better to output the literal 
         # or the match 
-        pbar = tqdm(reversed(list(enumerate(lengths[:-5]))), total=len(lengths) - 5)
-        literalCost = 1 
-        numLiterals = 5
+        pbar = tqdm(reversed(list(enumerate(lengths[:-LZ4.END_LITERALS]))), total=len(lengths) - LZ4.END_LITERALS)
+        num_literals = LZ4.END_LITERALS
         for i, length in pbar: 
            # if encoded as literal 
-           numLiterals += 1 
-           literal_cost = costs[i + 1] + literalCost 
-           if numLiterals > 15
-           
-           
-           if length < 4: 
-               costs[i] = literal_cost  
-           else:
-               match_cost = costs[i + length - 1] + 2
-               matches[i] = literal_cost > match_cost
-               costs[i] = min(literal_cost, match_cost)
+           num_literals += LZ4.LITERAL_COST 
+           best_length = LZ4.END_LITERALS  
+           min_cost = costs[i + 1] + LZ4.LITERAL_COST 
+           if num_literals > 15:
+               min_cost += 1  
+           # long self referencing match  
+           #if length > LZ4.MAX_SAME_LETTER and distances[i] == 1:
+           #    best_length = length 
+           #    min_cost = costs[i + length] + 4 + (length - 19) / 255
+           #else:
+           extra_cost = 3 
+           next_cost_increase = 18 
+           for j in range(LZ4.MINIMUM_LENGTH, length):
+                current_cost = costs[i + j] + extra_cost 
+                if current_cost <= min_cost:
+                     matches[i] = True
+                     min_cost = current_cost 
+                     best_length = j 
+                if j == next_cost_increase:
+                     extra_cost += 1 
+                     next_cost_increase += 255
+           costs[i] = min_cost 
+           lengths[i] = best_length 
+           if best_length != num_literals:
+               num_literals = 0
+               matches[i] = True
+        
         # This is the third pass, were we output the corresponding 
         # blocks 
         self.it = 0
