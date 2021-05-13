@@ -135,7 +135,7 @@ class LZ4:
            #else:
            extra_cost = 3 
            next_cost_increase = 18 
-           for j in range(LZ4.MINIMUM_LENGTH, length):
+           for j in range(LZ4.MINIMUM_LENGTH, length + 1):
                 current_cost = costs[i + j] + extra_cost 
                 if current_cost <= min_cost:
                      matches[i] = True
