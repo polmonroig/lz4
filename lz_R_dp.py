@@ -23,7 +23,7 @@ class LinkedHashTable:
         if literal in self.table:
             self.table[literal].append(index)
         else:
-            self.table[literal] = collections.deque([index], maxlen=100)
+            self.table[literal] = collections.deque([index], maxlen=500)
         if len(self.table) > LinkedHashTable.MAX_TABLE_SIZE:
             print("full") 
 
@@ -39,7 +39,6 @@ class LZ4:
     GOOD_ENOUGH_SIZE = 256
     MAX_MATCH_LENGTH = 65535 
     MAX_OFFSET = 65535 # 2 BYTES = 65535 
-    MAX_SAME_LETTER = 19 + 255 * 256
     MAX_LENGTH_CODE = 255 
     LITERAL_COST = 1 # 1 byte 
     END_LITERALS = 5 # 4 last literals don't have match 
@@ -100,7 +99,7 @@ class LZ4:
         # where we find maximum length for each byte 
         last_length = 1
         last_offset = 1 
-        pbar = tqdm(range(len(text) - 4))
+        pbar = tqdm(range(len(text) - LZ4.MINIMUM_LENGTH))
         for self.it in pbar: 
             literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
             match_length = last_length 
@@ -115,7 +114,7 @@ class LZ4:
                last_length = match_length - 1 
                last_offset = offset + 1
             self.table.add(literal, self.it)
-        costs = [1] * len(text) 
+        costs = [1] * (len(text) + 1)
         matches = [False] * len(text) # contains if it is a literal or a match 
         # In this second pass we compute the costs of each match 
         # thus calculating if it is better to output the literal 
@@ -123,34 +122,31 @@ class LZ4:
         pbar = tqdm(reversed(list(enumerate(lengths[:-LZ4.END_LITERALS]))), total=len(lengths) - LZ4.END_LITERALS)
         num_literals = LZ4.END_LITERALS
         for i, length in pbar: 
+           
+           # First we calculate the cost of saving the current literal 
+           # inside the block. It includes the cost of storing multiple literals 
+           # and the cost of saving their length 
            # if encoded as literal 
            num_literals += LZ4.LITERAL_COST 
-           best_length = LZ4.END_LITERALS  
-           min_cost = costs[i + 1] + LZ4.LITERAL_COST 
-           if num_literals > 15:
-               if num_literals == 15 or (num_literals >= 15 + LZ4.MAX_LENGTH_CODE and ((num_literals - 15) % LZ4.MAX_LENGTH_CODE) == 0):
-                    min_cost += 1  
-           # long self referencing match  
-           #if length > LZ4.MAX_SAME_LETTER and distances[i] == 1:
-           #    best_length = length 
-           #    min_cost = costs[i + length] + 4 + (length - 19) / 255
-           #else:
-           extra_cost = 3 
-           next_cost_increase = 18 
-           for j in range(LZ4.MINIMUM_LENGTH, length + 1):
-                current_cost = costs[i + j - 1] + extra_cost 
-                if current_cost <= min_cost:
-                     matches[i] = True
-                     min_cost = current_cost 
-                     best_length = j 
-                if j == next_cost_increase:
-                     extra_cost += 1 
-                     next_cost_increase += 255
-           costs[i] = min_cost 
-           lengths[i] = best_length 
-           if best_length != num_literals:
-               num_literals = 0
-               matches[i] = True
+           literal_cost = costs[i + 1] + LZ4.LITERAL_COST 
+           # calculate length cost 
+           if num_literals == 15 or num_literals % 255 == 0: 
+               literal_cost += 1
+           # Second we calculate the cost of saving the longest 
+           # match instead of storing the current literals of buffer 
+           match_cost = costs[i + length] + 3 # 2 bytes offset + 1 byte token 
+           if length >= 19: 
+               match_cost += 1 
+               length -= 19 
+               match_cost += length // 255 
+
+           if match_cost < literal_cost:
+               costs[i] = match_cost
+               matches[i] = True 
+           else:
+               costs[i] = literal_cost 
+            
+
         
         # This is the third pass, were we output the corresponding 
         # blocks 
@@ -198,7 +194,6 @@ class LZ4:
             token += literal_length << 4
         else:
             token += 15 << 4
-
         blocks.append(token)
         if literal_length >= 15:
             blocks += LZ4.writeLSIC(literal_length - 15)
