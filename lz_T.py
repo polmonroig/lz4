@@ -1,31 +1,8 @@
 from tqdm import tqdm
 import collections
 import sys
+import cProfile
 
-
-
-class LinkedHashTable:
-
-    MAX_TABLE_SIZE = 8000000
-
-    def __init__(self):
-        self.table = collections.OrderedDict()
-
-    def find(self, literal):
-        if literal in self.table:
-            value = self.table[literal]
-            self.table.move_to_end(literal)
-            return value
-        else:
-            return None
-
-
-    def add(self, literal, index):
-        self.table[literal] = index
-        self.table.move_to_end(literal)
-        if len(self.table) > LinkedHashTable.MAX_TABLE_SIZE:
-            self.table.popitem(last = False)
-            # print("full")
 
 class LZ4:
 
@@ -34,7 +11,7 @@ class LZ4:
     MIN_MATCH_LENGTH = 4
 
     MINIMUM_LENGTH = 4
-    GOOD_ENOUGH_SIZE = 256
+    GOOD_ENOUGH_SIZE = 64
     MAX_OFFSET = 65535 # 2 BYTES = 65535
 
     def __init__(self):
@@ -42,24 +19,19 @@ class LZ4:
         self.matchLength = 0
         self.offset = 0
         self.it = 0
-        self.table = LinkedHashTable()
+        self.table = {}
 
     def find_best(self, text, literal):
-        match_index = self.table.find(literal)
-        best_match_length = LZ4.MINIMUM_LENGTH - 1
-        match_found = False
-        best_offset = -1
+        match_index = self.table.get(literal)
         if match_index is not None:
-           best_match_length, best_offset = self.iterate(text, match_index, self.it)
-           if best_match_length > 0:
-               match_found = True
-        return match_found, best_match_length, best_offset
+            return self.iterate(text, match_index, self.it)
+        return False, 0, 0
 
     def iterate(self, text, match_index, literal_index):
         match_length = LZ4.MINIMUM_LENGTH
         offset = literal_index - match_index
         if offset > LZ4.MAX_OFFSET:
-            return 0, 0
+            return False, 0, 0
         k = match_index + LZ4.MINIMUM_LENGTH
         j = literal_index + LZ4.MINIMUM_LENGTH
         # search buffer
@@ -68,38 +40,35 @@ class LZ4:
             k += 1
             match_length += 1
 
-        return match_length, offset
+        return True, match_length, offset
 
     def compress(self, text):
         self.it = 0
         blocks = bytearray()
         last_match = 0
-        with tqdm(total=len(text)) as pbar:
-            while self.it < len(text):
-                #print('=================================')
-                #print('Search ', chr(text[i]))
-                #print('Text:', text[i:])
-                #print('Search buffer:', "".join([chr(i)for i in searchBuffer]))
-                #print('Code:', blocks)
-                literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
-                match_found, match_length, offset = self.find_best(text, literal)
+        while self.it < len(text):
+            #print('=================================')
+            #print('Search ', chr(text[i]))
+            #print('Text:', text[i:])
+            #print('Search buffer:', "".join([chr(i)for i in searchBuffer]))
+            #print('Code:', blocks)
+            literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
+            match_found, match_length, offset = self.find_best(text, literal)
 
-                if match_found: # match found
+            if match_found: # match found
 
-                    # print('Match found with length', match_length, 'and offset', offset)
-                    LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
-                    #self.table.add(literal, self.it) # remove line to increase speed
-                    # remove for increased speed, but less compression
-                    #for blockByte in range(self.it, match_length + self.it, 1):
-                    #    self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
+                # print('Match found with length', match_length, 'and offset', offset)
+                LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
+                #self.table.add(literal, self.it) # remove line to increase speed
+                # remove for increased speed, but less compression
+                #for blockByte in range(self.it, match_length + self.it, 1):
+                #    self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
 
-                    self.it += match_length
-                    pbar.update(match_length)
-                    last_match = self.it
-                else:
-                    self.table.add(literal, self.it)
-                    pbar.update(1)
-                    self.it += 1
+                self.it += match_length
+                last_match = self.it
+            else:
+                self.table[literal] = self.it
+                self.it += 1
 
         LZ4.createBlock(blocks, text[last_match:self.it], 0, 0, last_block=True)
         return blocks
@@ -274,5 +243,5 @@ def main():
 
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    cProfile.run("main()")
