@@ -7,6 +7,7 @@ import sys
 class LinkedHashTable:
 
     MAX_TABLE_SIZE = 8000000
+    QUEUE_SIZE = 1000 
 
     def __init__(self):
         self.table = collections.OrderedDict()
@@ -24,7 +25,7 @@ class LinkedHashTable:
         if literal in self.table:
             self.table[literal].append(index)
         else:
-            self.table[literal] = [index]
+            self.table[literal] = collections.deque([index], maxlen=LinkedHashTable.QUEUE_SIZE)
         self.table.move_to_end(literal)
         if len(self.table) > LinkedHashTable.MAX_TABLE_SIZE:
             self.table.popitem(last = False)
@@ -37,7 +38,7 @@ class LZ4:
     MIN_MATCH_LENGTH = 4
 
     MINIMUM_LENGTH = 4
-    GOOD_ENOUGH_SIZE = 256 
+    GOOD_ENOUGH_SIZE = 1024 
     MAX_OFFSET = 65535 # 2 BYTES = 65535
 
     def __init__(self):
@@ -100,6 +101,8 @@ class LZ4:
                 literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
 
                 match_found, match_length, offset = self.find_best(text, literal)
+                    
+
 
                 if match_found: # match found
 
