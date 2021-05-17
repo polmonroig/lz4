@@ -34,7 +34,7 @@ class LZ4:
     MIN_MATCH_LENGTH = 4
 
     MINIMUM_LENGTH = 4
-    GOOD_ENOUGH_SIZE = 512
+    GOOD_ENOUGH_SIZE = 256
     MAX_OFFSET = 65535 # 2 BYTES = 65535
 
     def __init__(self):
@@ -48,11 +48,11 @@ class LZ4:
         match_index = self.table.find(literal)
         best_match_length = LZ4.MINIMUM_LENGTH - 1
         match_found = False
-        best_offset = -1 
+        best_offset = -1
         if match_index is not None:
-           best_match_length, best_offset = self.iterate(text, match_index, self.it) 
+           best_match_length, best_offset = self.iterate(text, match_index, self.it)
            if best_match_length > 0:
-               match_found = True 
+               match_found = True
         return match_found, best_match_length, best_offset
 
     def iterate(self, text, match_index, literal_index):
@@ -63,7 +63,7 @@ class LZ4:
         k = match_index + LZ4.MINIMUM_LENGTH
         j = literal_index + LZ4.MINIMUM_LENGTH
         # search buffer
-        while j < len(text) and text[j] == text[k]:
+        while j < len(text) and text[j] == text[k] and match_length < LZ4.GOOD_ENOUGH_SIZE:
             j += 1
             k += 1
             match_length += 1
@@ -88,10 +88,10 @@ class LZ4:
 
                     # print('Match found with length', match_length, 'and offset', offset)
                     LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
-                    self.table.add(literal, self.it) # remove line to increase speed
+                    #self.table.add(literal, self.it) # remove line to increase speed
                     # remove for increased speed, but less compression
-                    for blockByte in range(self.it, match_length + self.it, 1):
-                        self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
+                    #for blockByte in range(self.it, match_length + self.it, 1):
+                    #    self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
 
                     self.it += match_length
                     pbar.update(match_length)
@@ -138,7 +138,7 @@ class LZ4:
         blocks += literal
         if not last_block:
             blocks.append(offset & 0x00FF)
-            blocks.append(offset >> 8) 
+            blocks.append(offset >> 8)
         if match_length >= 15:
             blocks += LZ4.writeLSIC(match_length - 15)
 
