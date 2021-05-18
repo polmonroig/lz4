@@ -162,11 +162,7 @@ class LZ4:
     def decompress(self, code):
         self.it = 0
         text = bytearray()
-        it_old = self.it
         while self.it < len(code):
-
-            pbar.update(self.it - it_old)
-            it_old = self.it
             self.readToken(code)
             #print('It:', self.it)
             self.readLiteralLenght(code)

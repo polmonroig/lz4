@@ -195,30 +195,25 @@ class LZ4:
     def decompress(self, code):
         self.it = 0
         text = bytearray()
-        with tqdm(total=len(code)) as pbar:
-            it_old = self.it
-            while self.it < len(code):
-
-                pbar.update(self.it - it_old)
-                it_old = self.it
-                self.readToken(code)
+        while self.it < len(code):
+            self.readToken(code)
+            #print('It:', self.it)
+            self.readLiteralLenght(code)
+            #print('It:', self.it)
+            literal = self.readLiteral(code)
+            #print('It:', self.it)
+            text += literal
+            if self.it < len(code): # in case it is the last token
+                self.readOffset(code)
                 #print('It:', self.it)
-                self.readLiteralLenght(code)
+                self.readMatchLength(code)
                 #print('It:', self.it)
-                literal = self.readLiteral(code)
+                # add
+                self.readMatch(text)
                 #print('It:', self.it)
-                text += literal
-                if self.it < len(code): # in case it is the last token
-                    self.readOffset(code)
-                    #print('It:', self.it)
-                    self.readMatchLength(code)
-                    #print('It:', self.it)
-                    # add
-                    self.readMatch(text)
-                    #print('It:', self.it)
-                # print(offsets[k], "==", self.offset)
-                #print('Block:', code[it_old:self.it])
-                #print('Text:', text)
+            # print(offsets[k], "==", self.offset)
+            #print('Block:', code[it_old:self.it])
+            #print('Text:', text)
 
 
         return text

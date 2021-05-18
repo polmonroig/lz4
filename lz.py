@@ -193,9 +193,7 @@ class LZ4:
     def decompress(self, code):
         self.it = 0
         text = bytearray()
-        it_old = self.it
         while self.it < len(code):
-            it_old = self.it
             self.readToken(code)
             self.readLiteralLenght(code)
             literal = self.readLiteral(code)
