@@ -1,4 +1,3 @@
-from tqdm import tqdm
 import collections
 import sys
 
@@ -12,7 +11,7 @@ class LinkedHashTable:
         self.table = {}
 
     def find(self, literal):
-        return self.table.get(literal) 
+        return self.table.get(literal)
 
 
     def add(self, literal, index):
@@ -47,7 +46,7 @@ class LZ4:
             for index in reversed(match_indices):
                 match_length, offset = self.iterate(text, index, self.it, best_match_length)
                 if offset == match_length == 0:
-                    break 
+                    break
                 if match_length > best_match_length:
                     match_found = True
                     best_match_length = match_length
@@ -62,10 +61,10 @@ class LZ4:
         offset = literal_index - match_index
         if offset > LZ4.MAX_OFFSET:
             return 0, 0
-        left_index = match_index + best_length 
-        right_index = literal_index + best_length  
-        if right_index < len(text) and text[left_index]  != text[right_index]:# this is a worse candidate 
-            return -1, -1 
+        left_index = match_index + best_length
+        right_index = literal_index + best_length
+        if right_index < len(text) and text[left_index]  != text[right_index]:# this is a worse candidate
+            return -1, -1
         k = match_index + LZ4.MINIMUM_LENGTH
         j = literal_index + LZ4.MINIMUM_LENGTH
         # search buffer
@@ -80,29 +79,21 @@ class LZ4:
         self.it = 0
         blocks = bytearray()
         last_match = 0
-        with tqdm(total=len(text)) as pbar:
-            while self.it < len(text):
-                #print('=================================')
-                #print('Search ', chr(text[i]))
-                #print('Text:', text[i:])
-                #print('Search buffer:', "".join([chr(i)for i in searchBuffer]))
-                #print('Code:', blocks)
-                literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
-                match_found, match_length, offset = self.find_best(text, literal)
+        while self.it < len(text):
+            literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
+            match_found, match_length, offset = self.find_best(text, literal)
 
-                if match_found: # match found
+            if match_found: # match found
 
-                    # print('Match found with length', match_length, 'and offset', offset)
-                    LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
-                    self.table.add(literal, self.it) # remove line to increase speed
-                    # remove for increased speed, but less compression
-                    self.it += match_length
-                    pbar.update(match_length)
-                    last_match = self.it
-                else:
-                    self.table.add(literal, self.it)
-                    pbar.update(1)
-                    self.it += 1
+                # print('Match found with length', match_length, 'and offset', offset)
+                LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
+                self.table.add(literal, self.it) # remove line to increase speed
+                # remove for increased speed, but less compression
+                self.it += match_length
+                last_match = self.it
+            else:
+                self.table.add(literal, self.it)
+                self.it += 1
 
         LZ4.createBlock(blocks, text[last_match:self.it], 0, 0, last_block=True)
         return blocks
@@ -141,7 +132,7 @@ class LZ4:
         blocks += literal
         if not last_block:
             blocks.append(offset & 0x00FF)
-            blocks.append(offset >> 8) 
+            blocks.append(offset >> 8)
         if match_length >= 15:
             blocks += LZ4.writeLSIC(match_length - 15)
 
@@ -202,30 +193,22 @@ class LZ4:
     def decompress(self, code):
         self.it = 0
         text = bytearray()
-        with tqdm(total=len(code)) as pbar:
+        it_old = self.it
+        while self.it < len(code):
             it_old = self.it
-            while self.it < len(code):
+            self.readToken(code)
+            self.readLiteralLenght(code)
+            literal = self.readLiteral(code)
+            text += literal
+            if self.it < len(code): # in case it is the last token
+                self.readOffset(code)
+                #print('It:', self.it)
+                self.readMatchLength(code)
+                #print('It:', self.it)
+                # add
+                self.readMatch(text)
+                #print('It:', self.it)
 
-                pbar.update(self.it - it_old)
-                it_old = self.it
-                self.readToken(code)
-                #print('It:', self.it)
-                self.readLiteralLenght(code)
-                #print('It:', self.it)
-                literal = self.readLiteral(code)
-                #print('It:', self.it)
-                text += literal
-                if self.it < len(code): # in case it is the last token
-                    self.readOffset(code)
-                    #print('It:', self.it)
-                    self.readMatchLength(code)
-                    #print('It:', self.it)
-                    # add
-                    self.readMatch(text)
-                    #print('It:', self.it)
-                # print(offsets[k], "==", self.offset)
-                #print('Block:', code[it_old:self.it])
-                #print('Text:', text)
 
 
         return text

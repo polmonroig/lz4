@@ -1,4 +1,3 @@
-from tqdm import tqdm
 import collections
 import sys
 import cProfile
@@ -47,11 +46,6 @@ class LZ4:
         blocks = bytearray()
         last_match = 0
         while self.it < len(text):
-            #print('=================================')
-            #print('Search ', chr(text[i]))
-            #print('Text:', text[i:])
-            #print('Search buffer:', "".join([chr(i)for i in searchBuffer]))
-            #print('Code:', blocks)
             literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
             match_found, match_length, offset = self.find_best(text, literal)
 
@@ -168,30 +162,26 @@ class LZ4:
     def decompress(self, code):
         self.it = 0
         text = bytearray()
-        with tqdm(total=len(code)) as pbar:
-            it_old = self.it
-            while self.it < len(code):
+        it_old = self.it
+        while self.it < len(code):
 
-                pbar.update(self.it - it_old)
-                it_old = self.it
-                self.readToken(code)
+            pbar.update(self.it - it_old)
+            it_old = self.it
+            self.readToken(code)
+            #print('It:', self.it)
+            self.readLiteralLenght(code)
+            #print('It:', self.it)
+            literal = self.readLiteral(code)
+            #print('It:', self.it)
+            text += literal
+            if self.it < len(code): # in case it is the last token
+                self.readOffset(code)
                 #print('It:', self.it)
-                self.readLiteralLenght(code)
+                self.readMatchLength(code)
                 #print('It:', self.it)
-                literal = self.readLiteral(code)
-                #print('It:', self.it)
-                text += literal
-                if self.it < len(code): # in case it is the last token
-                    self.readOffset(code)
-                    #print('It:', self.it)
-                    self.readMatchLength(code)
-                    #print('It:', self.it)
-                    # add
-                    self.readMatch(text)
-                    #print('It:', self.it)
-                # print(offsets[k], "==", self.offset)
-                #print('Block:', code[it_old:self.it])
-                #print('Text:', text)
+                # add
+                self.readMatch(text)
+
 
 
         return text
