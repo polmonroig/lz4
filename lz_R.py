@@ -10,25 +10,16 @@ class LinkedHashTable:
     QUEUE_SIZE = 1000 
 
     def __init__(self):
-        self.table = collections.OrderedDict()
+        self.table = {}
 
     def find(self, literal):
-        if literal in self.table:
-            value = self.table[literal]
-            self.table.move_to_end(literal)
-            return value
-        else:
-            return None
-
-
+        return self.table.get(literal) 
+    
     def add(self, literal, index):
         if literal in self.table:
             self.table[literal].append(index)
         else:
             self.table[literal] = collections.deque([index], maxlen=LinkedHashTable.QUEUE_SIZE)
-        self.table.move_to_end(literal)
-        if len(self.table) > LinkedHashTable.MAX_TABLE_SIZE:
-            self.table.popitem(last = False)
 
 
 class LZ4:
