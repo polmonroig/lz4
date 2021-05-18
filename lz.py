@@ -6,6 +6,7 @@ import sys
 class LinkedHashTable:
 
     MAX_TABLE_SIZE = 8000000
+    QUEUE_SIZE = 8
 
     def __init__(self):
         self.table = {}
@@ -13,12 +14,12 @@ class LinkedHashTable:
     def find(self, literal):
         return self.table.get(literal)
 
-
     def add(self, literal, index):
         if literal in self.table:
             self.table[literal].append(index)
         else:
-            self.table[literal] = [index]
+            self.table[literal] = collections.deque([index], maxlen=LinkedHashTable.QUEUE_SIZE)
+
 
 class LZ4:
 
