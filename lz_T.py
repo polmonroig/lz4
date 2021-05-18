@@ -23,23 +23,23 @@ class LZ4:
     def find_best(self, text, literal):
         match_index = self.table.get(literal)
         if match_index is not None:
-            return self.iterate(text, match_index, self.it)
+            literal_index = self.it
+            match_length = LZ4.MINIMUM_LENGTH
+            offset = literal_index - match_index
+            if offset > LZ4.MAX_OFFSET:
+                return False, 0, 0
+            k = match_index + LZ4.MINIMUM_LENGTH
+            j = literal_index + LZ4.MINIMUM_LENGTH
+            # search buffer
+            while j < len(text) and text[j] == text[k] and match_length < LZ4.GOOD_ENOUGH_SIZE:
+                j += 1
+                k += 1
+                match_length += 1
+            return True, match_length, offset
+            
         return False, 0, 0
 
-    def iterate(self, text, match_index, literal_index):
-        match_length = LZ4.MINIMUM_LENGTH
-        offset = literal_index - match_index
-        if offset > LZ4.MAX_OFFSET:
-            return False, 0, 0
-        k = match_index + LZ4.MINIMUM_LENGTH
-        j = literal_index + LZ4.MINIMUM_LENGTH
-        # search buffer
-        while j < len(text) and text[j] == text[k] and match_length < LZ4.GOOD_ENOUGH_SIZE:
-            j += 1
-            k += 1
-            match_length += 1
 
-        return True, match_length, offset
 
     def compress(self, text):
         self.it = 0
