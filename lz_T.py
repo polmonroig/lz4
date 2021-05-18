@@ -1,6 +1,5 @@
 import collections
 import sys
-import cProfile
 
 
 class LZ4:
@@ -36,7 +35,7 @@ class LZ4:
                 k += 1
                 match_length += 1
             return True, match_length, offset
-            
+
         return False, 0, 0
 
 
@@ -240,4 +239,4 @@ def main():
 
 
 if __name__ == "__main__":
-    cProfile.run("main()")
+    main()
