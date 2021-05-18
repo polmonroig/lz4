@@ -154,9 +154,19 @@ class LZ4:
     def readMatch(self, text):
         #print('Text Length:', len(text))
         #print('Offset:', self.offset)
+        initialLength = len(text)
+        # begin representes where the match starts
         pos = len(text) - self.offset
-        for i in range(self.matchLength):
-            text.append(text[pos + i])
+        # match distance is the distance of begin to the end of text
+        distance = len(text) - pos
+        # preacollate
+        text +=  b"0" * self.matchLength
+        if distance < self.matchLength:
+            for i in range(self.matchLength):
+                text[initialLength + i] = text[pos + i]
+        else:
+            text[initialLength:] = text[pos:pos + self.matchLength]
+
 
 
     def decompress(self, code):
