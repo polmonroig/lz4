@@ -12,7 +12,9 @@ class LinkedHashTable:
         self.table = {}
 
     def find(self, literal):
-        return self.table.get(literal)
+        if literal in self.table:
+            return self.table[literal]
+        return None
 
     def add(self, literal, index):
         if literal in self.table:
@@ -38,39 +40,40 @@ class LZ4:
         self.it = 0
         self.table = LinkedHashTable()
 
-    def find_best(self, text, literal):
+
+    def find_best(self, text, literal, pos):
         match_indices = self.table.find(literal)
-        best_match_length = LZ4.MINIMUM_LENGTH - 1
+        best_match_length = 3
         best_offset = -1
         match_found = False
         if match_indices is not None:
             for index in reversed(match_indices):
-                match_length, offset = self.iterate(text, index, self.it, best_match_length)
+                match_length, offset = self.iterate(text, index, pos, best_match_length)
                 if offset == match_length == 0:
                     break
                 if match_length > best_match_length:
                     match_found = True
                     best_match_length = match_length
                     best_offset = offset
-                    if best_match_length >= LZ4.GOOD_ENOUGH_SIZE:
+                    if best_match_length >= 1024:
                         break
 
         return match_found, best_match_length, best_offset
 
     def iterate(self, text, match_index, literal_index, best_length):
-        match_length = LZ4.MINIMUM_LENGTH
+        match_length = 4
         offset = literal_index - match_index
-        if offset > LZ4.MAX_OFFSET :
+        if offset > 65535 :
             return 0, 0
         left_index = match_index + best_length
         right_index = literal_index + best_length
-        if right_index < len(text) and text[left_index]  != text[right_index]:# this is a worse candidate
+        if right_index < LZ4.LENGTH and text[left_index]  != text[right_index]:# this is a worse candidate
             return -1, -1
-        k = match_index + LZ4.MINIMUM_LENGTH
-        j = literal_index + LZ4.MINIMUM_LENGTH
+        k = match_index + 4
+        j = literal_index + 4
         # search buffer
 
-        while j < len(text) and text[j] == text[k]:
+        while j < LZ4.LENGTH and text[j] == text[k]:
             j += 1
             k += 1
             match_length += 1
@@ -81,24 +84,34 @@ class LZ4:
         self.it = 0
         blocks = bytearray()
         last_match = 0
-        while self.it < len(text):
-            literal = text[self.it:self.it + LZ4.MINIMUM_LENGTH]
+        LZ4.LENGTH = len(text)
+        while self.it < LZ4.LENGTH:
+            literal = text[self.it:self.it + 4]
 
-            match_found, match_length, offset = self.find_best(text, literal)
+            match_found, match_length, offset = self.find_best(text, literal, self.it)
             if match_found: # match found
+                literal_next = text[self.it+1:self.it+5]
+                match_found, match_length_next, offset_next = self.find_best(text, literal_next, self.it + 1)
+                # if match at next position is better take it instead of this
+                if match_length_next > match_length:
+                    self.table.add(literal, self.it)
+                    self.it += 1
+                    match_length = match_length_next
+                    offset = offset_next
+                    literal = literal_next
                 # print('Match found with length', match_length, 'and offset', offset)
-                LZ4.createBlock(blocks, text[last_match:self.it], match_length, offset)
+                LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, match_length, offset)
                 self.table.add(literal, self.it) # remove line to increase speed
                 # remove for increased speed, but less compression
                 for blockByte in range(self.it, match_length + self.it, 1):
-                    self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
+                    self.table.add(text[blockByte:blockByte + 4], blockByte)
                 self.it += match_length
                 last_match = self.it
             else:
                 self.table.add(literal, self.it)
                 self.it += 1
 
-        LZ4.createBlock(blocks, text[last_match:self.it], 0, 0, last_block=True)
+        LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, 0, 0, last_block=True)
         return blocks
 
     @staticmethod
@@ -112,9 +125,9 @@ class LZ4:
         return blocks
 
     @staticmethod
-    def createBlock(blocks, literal, match_length, offset, last_block=False):
+    def createBlock(blocks, literal, literal_length, match_length, offset, last_block=False):
         # literal = bytes(literal, 'utf-8')
-        literal_length = len(literal)
+
         # codify token
         token = 0
         match_length -= 4
@@ -189,9 +202,9 @@ class LZ4:
         #print('Offset:', self.offset)
         initialLength = len(text)
         # begin representes where the match starts
-        pos = len(text) - self.offset
+        pos = initialLength - self.offset
         # match distance is the distance of begin to the end of text
-        distance = len(text) - pos
+        distance = initialLength - pos
         # preacollate
         text +=  b"0" * self.matchLength
         if distance < self.matchLength:
@@ -201,10 +214,12 @@ class LZ4:
             text[initialLength:] = text[pos:pos + self.matchLength]
 
 
+
     def decompress(self, code):
         self.it = 0
         text = bytearray()
-        while self.it < len(code):
+        LZ4.LENGTH = len(code)
+        while self.it < LZ4.LENGTH:
             self.readToken(code)
             #print('It:', self.it)
             self.readLiteralLenght(code)
@@ -212,17 +227,14 @@ class LZ4:
             literal = self.readLiteral(code)
             #print('It:', self.it)
             text += literal
-            if self.it < len(code): # in case it is the last token
+            if self.it < LZ4.LENGTH : # in case it is the last token
                 self.readOffset(code)
                 #print('It:', self.it)
                 self.readMatchLength(code)
                 #print('It:', self.it)
                 # add
                 self.readMatch(text)
-                #print('It:', self.it)
-            # print(offsets[k], "==", self.offset)
-            #print('Block:', code[it_old:self.it])
-            #print('Text:', text)
+
 
 
         return text
