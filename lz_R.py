@@ -1,6 +1,6 @@
 import collections
 import sys
-
+import cProfile
 
 
 class LinkedHashTable:
@@ -285,6 +285,6 @@ def main():
 
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
+    #cProfile.run('main()')

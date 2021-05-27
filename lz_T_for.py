@@ -34,13 +34,11 @@ class LZ4:
             # search buffer
             #for j, k in zip(range(j_ini,len(text)),range(k_ini,len(text))):
             for j in range(j_ini,len(text)):
-                if match_length == 256:
-                    return True, match_length, offset
                 if text[j] == text[k]:
                     k +=1
                     match_length +=1
                 else:
-                    return True, match_length, offset
+                    break
             return True, match_length, offset
 
         return False, 0, 0
@@ -248,4 +246,4 @@ def main():
 
 
 if __name__ == "__main__":
-    cProfile.run("main()")
+    main()
