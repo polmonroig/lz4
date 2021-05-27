@@ -26,18 +26,18 @@ class LZ4:
         if literal in self.table:
             match_index = self.table[literal]
             literal_index = self.it
-            match_length = 4
             offset = literal_index - match_index
             if offset > 65535:
                 return False, 0, 0
-            k = match_index + 4
-            j = literal_index + 4
+            k = match_index + 6
+            j = literal_index + 6
             # search buffer
             while j < LZ4.LENGTH and text[j] == text[k]:
                 j += 1
                 k += 1
-                match_length += 1
-            return True, match_length, offset
+            # adding k - match_length instead of match_length += 1 improves
+            # speed by a little
+            return True, k - match_index, offset
 
         return False, 0, 0
 
@@ -49,7 +49,7 @@ class LZ4:
         last_match = 0
         LZ4.LENGTH = len(text)
         while self.it < LZ4.LENGTH:
-            literal = text[self.it:self.it + 4]
+            literal = text[self.it:self.it + 8]
             match_found, match_length, offset = self.find_best(text, literal)
 
             if match_found: # match found

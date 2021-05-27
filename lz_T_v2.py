@@ -1,6 +1,7 @@
 import collections
 import sys
 import cProfile
+import itertools
 
 class LZ4:
 
@@ -43,7 +44,7 @@ class LZ4:
 
 
     def compress(self, text):
-        self.it = int(len(text) * 0.712)
+        self.it = int(len(text) * 0.765)
         blocks = bytearray()
         last_match = 0
         LZ4.LENGTH = len(text)
