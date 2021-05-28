@@ -2,6 +2,7 @@ import collections
 import sys
 import cProfile
 import itertools
+import timeit
 
 class LZ4:
 
@@ -211,12 +212,22 @@ def main():
     elif sys.argv[1] == '-c':
         file = sys.argv[2]
         fd = open(file, 'rb')
+        print('============================================')
         print('Compressing file', file)
         # read file and encode
         text = fd.read()
+        start1 = timeit.default_timer()
         code = encoder.compress(text)
+        end1 = timeit.default_timer()
+        print('Compression time', end1 - start1)
         print('Ratio:', len(text) / len(code))
-        #print('Compressed correctly:', text == encoder.decompress(code))
+        print('Transmission time', len(code) / 1000000)
+        start2 = timeit.default_timer()
+        decoded = encoder.decompress(code)
+        end2 = timeit.default_timer()
+        print('Decompression time', end2 - start2)
+        print('Total time', (end2 - start2) + (end1 - start1) + (len(code) / 1000000))
+        print('Compressed correctly:', text == decoded)
         # create new file
         with open(file + LZ4.ENCODE_EXT, 'wb') as out:
             out.write(code)
@@ -241,5 +252,5 @@ def main():
 
 
 if __name__ == "__main__":
-    #main()
-    cProfile.run('main()')
+    main()
+    #cProfile.run('main()')
