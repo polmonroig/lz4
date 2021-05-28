@@ -119,94 +119,68 @@ class LZ4:
         if match_length >= 15:
             blocks += LZ4.writeLSIC(match_length - 15)
 
-    def readToken(self, code):
-        self.literalLength = code[self.it] >> 4 # 4 highest bits
-        self.matchLength = code[self.it] & 0x0F # 4 lowest bits
 
-        self.it += 1
+    # DECOMPRESSION
 
-    def readLiteral(self, code):
-        literal = code[self.it:self.it + self.literalLength]
-        self.it += self.literalLength
-        #print('Literal found:', literal)
-        return literal
+    @staticmethod
+    def readVariableLength(iterator, code):
+        length = 15
+        s = 255
+        while s == 255:
+            s = code[iterator]
+            iterator += 1
+            length += s
 
-    def readLiteralLenght(self, code):
-        self.literalLength = self.readLSIC(code, self.literalLength)
-        #print('Literal length:', self.literalLength)
-
-
-    def readMatchLength(self, code):
-        self.matchLength = self.readLSIC(code, self.matchLength) + LZ4.MIN_MATCH_LENGTH
-        #print('Match length:', self.matchLength)
-
-    def readOffset(self, code):
-        higher = code[self.it + 1]
-        lower = code[self.it]
-        #print('Offset hex:', code[self.it:self.it + 1])
-        self.offset = (higher << 8) + lower
-        self.it += 2
-        #print('Offset:', self.offset)
-
-    def readLSIC(self, code, initialLength):
-        length = initialLength
-        currentByte = initialLength
-        # 15 == 4 bits
-        if currentByte >= 15:
-            currentByte = code[self.it]
-            # 8 bits
-            while currentByte >= 255:
-                length += currentByte
-                self.it += 1
-                currentByte = code[self.it]
-
-            length += currentByte
-            self.it += 1 # next block
-
-        return length
-
-    def readMatch(self, text):
-        #print('Text Length:', len(text))
-        #print('Offset:', self.offset)
-        initialLength = len(text)
-        # begin representes where the match starts
-        pos = initialLength - self.offset
-        # match distance is the distance of begin to the end of text
-        distance = initialLength - pos
-        # preacollate
-        text +=  b"0" * self.matchLength
-        if distance < self.matchLength:
-            for i in range(self.matchLength):
-                text[initialLength + i] = text[pos + i]
-        else:
-            text[initialLength:] = text[pos:pos + self.matchLength]
+        return length, iterator
 
 
 
     def decompress(self, code):
-        self.it = 0
-        text = bytearray()
+        iterator = 0
+        out = bytearray()
         LZ4.LENGTH = len(code)
-        while self.it < LZ4.LENGTH:
-            self.readToken(code)
-            #print('It:', self.it)
-            self.readLiteralLenght(code)
-            #print('It:', self.it)
-            literal = self.readLiteral(code)
-            #print('It:', self.it)
-            text += literal
-            if self.it < LZ4.LENGTH : # in case it is the last token
-                self.readOffset(code)
-                #print('It:', self.it)
-                self.readMatchLength(code)
-                #print('It:', self.it)
-                # add
-                self.readMatch(text)
+        while iterator != LZ4.LENGTH:
+            # first read token
+            token = code[iterator]
+            # increment iterator
+            iterator += 1
+            # read literal length
+            length = token >> 4
+            # read literals
+            if length == 15:
+                length, iterator = LZ4.readVariableLength(iterator, code)
+            out += code[iterator:iterator + length]
+            iterator += length
+            # after literal always check if we are in the last block
+
+            if iterator == LZ4.LENGTH:
+                break
+            # read offset
+            offset = code[iterator] + (code[iterator + 1] << 8)
+            iterator += 2
+            # read match length
+            length = token & 0x0F
+            # read matches
+            if length == 15:
+                length, iterator = LZ4.readVariableLength(iterator, code)
+            # always add 4 to length (MINMATCH)
+            length += 4
+            # read match
+            initialLength = len(out)
+            # begin representes where the match starts
+            pos = initialLength - offset
+            # match distance is the distance of begin to the end of text
+            distance = initialLength - pos
+            # preacollate
+            out +=  b"0" * length
+            if distance < length:
+                for i in range(length):
+                    out[initialLength + i] = out[pos + i]
+            else:
+                out[initialLength:] = out[pos:pos + length]
 
 
-
-        return text
-
+        return out
 
 
 
