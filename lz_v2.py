@@ -162,7 +162,7 @@ class LZ4:
             distance = initialLength - pos
             # preacollate
             out +=  b"0" * length
-            if True:
+            if distance < self.matchLength:
                 for i in range(length):
                     out[initialLength + i] = out[pos + i]
             else:
