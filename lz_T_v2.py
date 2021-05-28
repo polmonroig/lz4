@@ -67,7 +67,7 @@ class LZ4:
                 self.table[literal] = self.it
                 self.it += 1
 
-        LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, 0, 0, last_block=True)
+        LZ4.createLastBlock(blocks, text[last_match:self.it], self.it - last_match)
         return blocks
 
     @staticmethod
@@ -81,18 +81,8 @@ class LZ4:
         return blocks
 
     @staticmethod
-    def createBlock(blocks, literal, literal_length, match_length, offset, last_block=False):
-        # literal = bytes(literal, 'utf-8')
-        #literal_length = len(literal)
-        # codify token
+    def createLastBlock(blocks, literal, literal_length):
         token = 0
-        match_length -= 4
-        if match_length < 15:
-            token += match_length
-        else:
-            token += 15
-        if last_block:
-            token = 0
         if literal_length < 15:
             token += literal_length << 4
         else:
@@ -102,9 +92,30 @@ class LZ4:
         if literal_length >= 15:
             blocks += LZ4.writeLSIC(literal_length - 15)
         blocks += literal
-        if not last_block:
-            blocks.append(offset & 0x00FF)
-            blocks.append(offset >> 8)
+
+
+    @staticmethod
+    def createBlock(blocks, literal, literal_length, match_length, offset):
+        # literal = bytes(literal, 'utf-8')
+        #literal_length = len(literal)
+        # codify token
+        token = 0
+        match_length -= 4
+        if match_length < 15:
+            token += match_length
+        else:
+            token += 15
+        if literal_length < 15:
+            token += literal_length << 4
+        else:
+            token += 15 << 4
+
+        blocks.append(token)
+        if literal_length >= 15:
+            blocks += LZ4.writeLSIC(literal_length - 15)
+        blocks += literal
+        blocks.append(offset & 0x00FF)
+        blocks.append(offset >> 8)
         if match_length >= 15:
             blocks += LZ4.writeLSIC(match_length - 15)
 
@@ -216,7 +227,7 @@ def main():
         text = fd.read()
         code = encoder.compress(text)
         print('Ratio:', len(text) / len(code))
-        #print('Compressed correctly:', text == encoder.decompress(code))
+        print('Compressed correctly:', text == encoder.decompress(code))
         # create new file
         with open(file + LZ4.ENCODE_EXT, 'wb') as out:
             out.write(code)
@@ -241,5 +252,5 @@ def main():
 
 
 if __name__ == "__main__":
-    #main()
-    cProfile.run('main()')
+    main()
+    #cProfile.run('main()')

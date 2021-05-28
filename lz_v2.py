@@ -29,8 +29,8 @@ class LZ4:
             offset = literal_index - match_index
             if offset > 65535:
                 return False, 0, 0
-            k = match_index + 6
-            j = literal_index + 6
+            k = match_index + 8
+            j = literal_index + 8
             # search buffer
             while j < LZ4.LENGTH and text[j] == text[k]:
                 j += 1
@@ -241,5 +241,5 @@ def main():
 
 
 if __name__ == "__main__":
-    #main()
-    cProfile.run('main()')
+    main()
+    #cProfile.run('main()')
