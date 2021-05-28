@@ -32,7 +32,7 @@ class LZ4:
             k = match_index + 8
             j = literal_index + 8
             # search buffer
-            while j < LZ4.LENGTH and text[j] == text[k]:
+            while j < literal_index and text[j] == text[k]:
                 j += 1
                 k += 1
             # adding k - match_length instead of match_length += 1 improves

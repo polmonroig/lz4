@@ -1,9 +1,8 @@
-#!/bin/zsh 
+#!/bin/zsh
 
 program=$1
 files=(
     "la_regenta_utf16"
-    "a_40M"
     "file26.bmp"
     "file28.bmp"
     "aes.tar"
@@ -16,7 +15,7 @@ files=(
 
 prefix="test_files/"
 
-for i in $files; do 
+for i in $files; do
     echo "Testing file $i"
-    time python $program -c $prefix$i 
+    time python $program -c $prefix$i
 done;

@@ -22,7 +22,7 @@ class LinkedHashTable:
             # iterate matche in reverse order. It has a O(1) time complexity
             self.table[literal].appendleft(index)
         else:
-            self.table[literal] = collections.deque([index], maxlen=5000)
+            self.table[literal] = collections.deque([index], maxlen=3000)
 
 
 class LZ4:
@@ -90,21 +90,21 @@ class LZ4:
         LZ4.LENGTH = len(text)
         while self.it < LZ4.LENGTH:
             literal = text[self.it:self.it + 4]
-
             match_found, match_length, offset = self.find_best(text, literal, self.it)
             if match_found: # match found
-                for k in range(1, 4):
-                    literal_next = text[self.it+1:self.it+ 5]
-                    match_found, match_length_next, offset_next = self.find_best(text, literal_next, self.it + 1)
-                    # if match at next position is better take it instead of this
-                    if match_length_next > match_length:
-                        self.table.add(literal, self.it)
-                        self.it += 1
-                        match_length = match_length_next
-                        offset = offset_next
-                        literal = literal_next
-                    else:
-                        break
+                if 10 < len(self.table.table):
+                    for k in range(4):
+                        literal_next = text[self.it+1:self.it+ 5]
+                        match_found, match_length_next, offset_next = self.find_best(text, literal_next, self.it + 1)
+                        # if match at next position is better take it instead of this
+                        if match_length_next > match_length:
+                            self.table.add(literal, self.it)
+                            self.it += 1
+                            match_length = match_length_next
+                            offset = offset_next
+                            literal = literal_next
+                        else:
+                            break
                 # print('Match found with length', match_length, 'and offset', offset)
                 LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, match_length, offset)
                 self.table.add(literal, self.it) # remove line to increase speed
@@ -268,7 +268,7 @@ def main():
         text = fd.read()
         code = encoder.compress(text)
         print('Ratio:', len(text) / len(code))
-        print('Compressed correctly:', text == encoder.decompress(code))
+        #print('Compressed correctly:', text == encoder.decompress(code))
         # create new file
         with open(file + LZ4.ENCODE_EXT, 'wb') as out:
             out.write(code)
