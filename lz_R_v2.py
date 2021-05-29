@@ -22,7 +22,7 @@ class LinkedHashTable:
             # iterate matche in reverse order. It has a O(1) time complexity
             self.table[literal].appendleft(index)
         else:
-            self.table[literal] = collections.deque([index], maxlen=3000)
+            self.table[literal] = collections.deque([index], maxlen=10000)
 
 
 class LZ4:
@@ -50,7 +50,7 @@ class LZ4:
         match_found = False
         if match_indices is not None:
             for index in match_indices:
-                match_length, offset = self.iterate(text, index, pos, best_match_length)
+                match_length, offset = LZ4.iterate(text, index, pos, best_match_length)
                 if offset == match_length == 0:
                     break
                 if match_length > best_match_length:
@@ -62,7 +62,8 @@ class LZ4:
 
         return match_found, best_match_length, best_offset
 
-    def iterate(self, text, match_index, literal_index, best_length):
+    @staticmethod
+    def iterate(text, match_index, literal_index, best_length):
         match_length = 4
         offset = literal_index - match_index
         if offset > 65535 :
@@ -84,40 +85,39 @@ class LZ4:
 
 
     def compress(self, text):
-        self.it = 0
+        iterator = 0
         blocks = bytearray()
         last_match = 0
         LZ4.LENGTH = len(text)
-        while self.it < LZ4.LENGTH:
-            literal = text[self.it:self.it + 4]
-            match_found, match_length, offset = self.find_best(text, literal, self.it)
+        while iterator < LZ4.LENGTH:
+            literal = text[iterator:iterator + 4]
+            match_found, match_length, offset = self.find_best(text, literal, iterator)
             if match_found: # match found
-                if 10 < len(self.table.table):
-                    for k in range(4):
-                        literal_next = text[self.it+1:self.it+ 5]
-                        match_found, match_length_next, offset_next = self.find_best(text, literal_next, self.it + 1)
-                        # if match at next position is better take it instead of this
-                        if match_length_next > match_length:
-                            self.table.add(literal, self.it)
-                            self.it += 1
-                            match_length = match_length_next
-                            offset = offset_next
-                            literal = literal_next
-                        else:
-                            break
+                for k in range(4):
+                    literal_next = text[iterator+1:iterator+ 5]
+                    match_found, match_length_next, offset_next = self.find_best(text, literal_next, iterator + 1)
+                    # if match at next position is better take it instead of this
+                    if match_length_next > match_length:
+                        self.table.add(literal, iterator)
+                        iterator += 1
+                        match_length = match_length_next
+                        offset = offset_next
+                        literal = literal_next
+                    else:
+                        break
                 # print('Match found with length', match_length, 'and offset', offset)
-                LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, match_length, offset)
-                self.table.add(literal, self.it) # remove line to increase speed
+                LZ4.createBlock(blocks, text[last_match:iterator], iterator - last_match, match_length, offset)
+                self.table.add(literal, iterator) # remove line to increase speed
                 # remove for increased speed, but less compression
-                for blockByte in range(self.it, match_length + self.it, 1):
+                for blockByte in range(iterator, match_length + iterator, 1):
                     self.table.add(text[blockByte:blockByte + 4], blockByte)
-                self.it += match_length
-                last_match = self.it
+                iterator += match_length
+                last_match = iterator
             else:
-                self.table.add(literal, self.it)
-                self.it += 1
+                self.table.add(literal, iterator)
+                iterator += 1
 
-        LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, 0, 0, last_block=True)
+        LZ4.createBlock(blocks, text[last_match:iterator], iterator - last_match, 0, 0, last_block=True)
         return blocks
 
     @staticmethod

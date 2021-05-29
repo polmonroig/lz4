@@ -1,7 +1,6 @@
 import collections
 import sys
 import cProfile
-import itertools
 
 class LZ4:
 
@@ -20,58 +19,52 @@ class LZ4:
         self.matchLength = 0
         self.offset = 0
         self.it = 0
-        self.table = {}
-
-    def find_best(self, text, literal):
-        if literal in self.table:
-            match_index = self.table[literal]
-            literal_index = self.it
-            offset = literal_index - match_index
-            if offset > 65535:
-                return False, 0, 0
-            k = match_index + 6
-            j = literal_index + 6
-            # search buffer
-            while j < LZ4.LENGTH and text[j] == text[k]:
-                j += 1
-                k += 1
-            # adding k - match_length instead of match_length += 1 improves
-            # speed by a little
-            return True, k - match_index, offset
-
-        return False, 0, 0
-
 
 
     def compress(self, text):
-        self.it = int(len(text) * 0.765)
+        text_length = len(text)
+        iterator = int(text_length * 0.765)
         blocks = bytearray()
         last_match = 0
-        LZ4.LENGTH = len(text)
-        while self.it < LZ4.LENGTH:
-            literal = text[self.it:self.it + 6]
-            match_found, match_length, offset = self.find_best(text, literal)
+        table = {}
 
-            if match_found: # match found
+        while iterator < text_length:
+            # get next literal
+            literal_end = iterator + 6
+            literal = text[iterator:literal_end]
+            # if literal in table
+            if literal in table:
+                # get match
+                match_start = table[literal]
+                # calculate the offset
+                offset = iterator - match_start
+                # continue if offset is within range
+                if offset <= 65535:
+                    match_index = match_start + 6
+                    # get longest match length
+                    while literal_end < text_length and text[match_index] == text[literal_end]:
+                        match_index += 1
+                        literal_end += 1
 
-                # print('Match found with length', match_length, 'and offset', offset)
-                LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, match_length, offset)
-                #self.table.add(literal, self.it) # remove line to increase speed
-                # remove for increased speed, but less compression
-                #for blockByte in range(self.it, match_length + self.it, 1):
-                #    self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
-
-                self.it += match_length
-                last_match = self.it
+                    length = match_index - match_start
+                    LZ4.createBlock(blocks, text[last_match:iterator], iterator - last_match, length, offset)
+                    iterator += length
+                    last_match = iterator
+                # skip match
+                else:
+                    table[literal] = iterator
+                    iterator += 1
+            # skip match
             else:
-                self.table[literal] = self.it
-                self.it += 1
+                table[literal] = iterator
+                iterator += 1
 
-        LZ4.createLastBlock(blocks, text[last_match:self.it], self.it - last_match)
+
+        LZ4.createBlock(blocks, text[last_match:iterator], iterator - last_match, 0, 0, last_block=True)
         return blocks
 
     @staticmethod
-    def writeLSIC(length):
+    def writeVariableLength(length):
         blocks = bytearray()
         count = length // 255 # how many 255 we have
         blocks += b"\xff" * count
@@ -81,21 +74,7 @@ class LZ4:
         return blocks
 
     @staticmethod
-    def createLastBlock(blocks, literal, literal_length):
-        token = 0
-        if literal_length < 15:
-            token += literal_length << 4
-        else:
-            token += 15 << 4
-
-        blocks.append(token)
-        if literal_length >= 15:
-            blocks += LZ4.writeLSIC(literal_length - 15)
-        blocks += literal
-
-
-    @staticmethod
-    def createBlock(blocks, literal, literal_length, match_length, offset):
+    def createBlock(blocks, literal, literal_length, match_length, offset, last_block=False):
         # literal = bytes(literal, 'utf-8')
         #literal_length = len(literal)
         # codify token
@@ -105,6 +84,8 @@ class LZ4:
             token += match_length
         else:
             token += 15
+        if last_block:
+            token = 0
         if literal_length < 15:
             token += literal_length << 4
         else:
@@ -112,13 +93,13 @@ class LZ4:
 
         blocks.append(token)
         if literal_length >= 15:
-            blocks += LZ4.writeLSIC(literal_length - 15)
+            blocks += LZ4.writeVariableLength(literal_length - 15)
         blocks += literal
-        blocks.append(offset & 0x00FF)
-        blocks.append(offset >> 8)
+        if not last_block:
+            blocks.append(offset & 0x00FF)
+            blocks.append(offset >> 8)
         if match_length >= 15:
-            blocks += LZ4.writeLSIC(match_length - 15)
-
+            blocks += LZ4.writeVariableLength(match_length - 15)
 
     # DECOMPRESSION
 
@@ -186,6 +167,7 @@ class LZ4:
 
 
 
+
 def main():
     # create instance on encoder
     encoder = LZ4()
@@ -196,11 +178,11 @@ def main():
     elif sys.argv[1] == '-c':
         file = sys.argv[2]
         fd = open(file, 'rb')
+        print('============================================')
         print('Compressing file', file)
         # read file and encode
         text = fd.read()
         code = encoder.compress(text)
-        print('Ratio:', len(text) / len(code))
         print('Compressed correctly:', text == encoder.decompress(code))
         # create new file
         with open(file + LZ4.ENCODE_EXT, 'wb') as out:
