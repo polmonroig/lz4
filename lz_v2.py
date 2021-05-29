@@ -23,33 +23,14 @@ class LZ4:
         self.it = 0
         self.table = {}
 
-    def find_best(self, text, literal):
-        if literal in self.table:
-            match_index = self.table[literal]
-            literal_index = self.it
-            offset = literal_index - match_index
-            if offset > 65535:
-                return False, 0, 0
-            k = match_index + 8
-            j = literal_index + 8
-            # search buffer
-            while j < LZ4.LENGTH and text[j] == text[k]:
-                j += 1
-                k += 1
-            # adding k - match_length instead of match_length += 1 improves
-            # speed by a little
-            return True, k - match_index, offset
-
-        return False, 0, 0
-
-
 
     def compress(self, text):
+        text_length = len(text)
         iterator = 0
         blocks = bytearray()
         last_match = 0
         table = {}
-        text_length = len(text)
+
         while iterator < text_length:
             # get next literal
             literal_end = iterator + 8
@@ -72,9 +53,11 @@ class LZ4:
                     LZ4.createBlock(blocks, text[last_match:iterator], iterator - last_match, length, offset)
                     iterator += length
                     last_match = iterator
+                # skip match
                 else:
                     table[literal] = iterator
                     iterator += 1
+            # skip match
             else:
                 table[literal] = iterator
                 iterator += 1
@@ -84,7 +67,7 @@ class LZ4:
         return blocks
 
     @staticmethod
-    def writeLSIC(length):
+    def writeVariableLength(length):
         blocks = bytearray()
         count = length // 255 # how many 255 we have
         blocks += b"\xff" * count
@@ -113,13 +96,13 @@ class LZ4:
 
         blocks.append(token)
         if literal_length >= 15:
-            blocks += LZ4.writeLSIC(literal_length - 15)
+            blocks += LZ4.writeVariableLength(literal_length - 15)
         blocks += literal
         if not last_block:
             blocks.append(offset & 0x00FF)
             blocks.append(offset >> 8)
         if match_length >= 15:
-            blocks += LZ4.writeLSIC(match_length - 15)
+            blocks += LZ4.writeVariableLength(match_length - 15)
 
     # DECOMPRESSION
 
