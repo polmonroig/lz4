@@ -3,7 +3,6 @@
 program=$1
 files=(
     "la_regenta_utf16"
-    "a_40M"
     "file26.bmp"
     "file28.bmp"
     "aes.tar"
