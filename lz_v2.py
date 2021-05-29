@@ -45,30 +45,42 @@ class LZ4:
 
 
     def compress(self, text):
-        self.it = 0
+        iterator = 0
         blocks = bytearray()
         last_match = 0
-        LZ4.LENGTH = len(text)
-        while self.it < LZ4.LENGTH:
-            literal = text[self.it:self.it + 8]
-            match_found, match_length, offset = self.find_best(text, literal)
+        table = {}
+        text_length = len(text)
+        while iterator < text_length:
+            # get next literal
+            literal_end = iterator + 8
+            literal = text[iterator:literal_end]
+            # if literal in table
+            if literal in table:
+                # get match
+                match_start = table[literal]
+                # calculate the offset
+                offset = iterator - match_start
+                # continue if offset is within range
+                if offset <= 65535:
+                    match_index = match_start + 8
+                    # get longest match length
+                    while literal_end < text_length and text[match_index] == text[literal_end]:
+                        match_index += 1
+                        literal_end += 1
 
-            if match_found: # match found
-
-                # print('Match found with length', match_length, 'and offset', offset)
-                LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, match_length, offset)
-                #self.table.add(literal, self.it) # remove line to increase speed
-                # remove for increased speed, but less compression
-                #for blockByte in range(self.it, match_length + self.it, 1):
-                #    self.table.add(text[blockByte:blockByte + LZ4.MINIMUM_LENGTH], blockByte)
-
-                self.it += match_length
-                last_match = self.it
+                    length = match_index - match_start
+                    LZ4.createBlock(blocks, text[last_match:iterator], iterator - last_match, length, offset)
+                    iterator += length
+                    last_match = iterator
+                else:
+                    table[literal] = iterator
+                    iterator += 1
             else:
-                self.table[literal] = self.it
-                self.it += 1
+                table[literal] = iterator
+                iterator += 1
 
-        LZ4.createBlock(blocks, text[last_match:self.it], self.it - last_match, 0, 0, last_block=True)
+
+        LZ4.createBlock(blocks, text[last_match:iterator], iterator - last_match, 0, 0, last_block=True)
         return blocks
 
     @staticmethod
