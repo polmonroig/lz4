@@ -183,6 +183,7 @@ def main():
         # read file and encode
         text = fd.read()
         code = encoder.compress(text)
+        print('Ratio:', len(text) / len(code))
         print('Compressed correctly:', text == encoder.decompress(code))
         # create new file
         with open(file + LZ4.ENCODE_EXT, 'wb') as out:
