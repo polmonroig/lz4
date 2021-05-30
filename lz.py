@@ -177,7 +177,6 @@ def main():
     elif sys.argv[1] == '-c':
         file = sys.argv[2]
         fd = open(file, 'rb')
-        print('============================================')
         print('Compressing file', file)
         # read file and encode
         text = fd.read()
