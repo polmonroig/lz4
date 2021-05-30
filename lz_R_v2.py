@@ -22,7 +22,7 @@ class LinkedHashTable:
             # iterate matche in reverse order. It has a O(1) time complexity
             self.table[literal].appendleft(index)
         else:
-            self.table[literal] = collections.deque([index], maxlen=10000)
+            self.table[literal] = collections.deque([index], maxlen=20000)
 
 
 class LZ4:
@@ -93,7 +93,7 @@ class LZ4:
             literal = text[iterator:iterator + 4]
             match_found, match_length, offset = self.find_best(text, literal, iterator)
             if match_found: # match found
-                for k in range(4):
+                for k in range(5):
                     literal_next = text[iterator+1:iterator+ 5]
                     match_found, match_length_next, offset_next = self.find_best(text, literal_next, iterator + 1)
                     # if match at next position is better take it instead of this
@@ -240,7 +240,7 @@ def main():
         text = fd.read()
         code = encoder.compress(text)
         print('Ratio:', len(text) / len(code))
-        #print('Compressed correctly:', text == encoder.decompress(code))
+        print('Compressed correctly:', text == encoder.decompress(code))
         # create new file
         with open(file + LZ4.ENCODE_EXT, 'wb') as out:
             out.write(code)
